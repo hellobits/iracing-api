@@ -1,0 +1,24 @@
+[package]
+name = "iracing-api"
+version = "0.0.0"
+authors = ["Jan David <jandavid@hellobits.io>"]
+edition = "2018"
+
+description = """
+iRacing API is a client library for the telemetry API of iRacing. It reads the
+telemetry data that iRacing publishes to a memory-mapped file, and returns it as
+a safe Rust struct.
+"""
+
+readme = "README.md"
+repository = "https://github.com/hellobits/iracing-api"
+license = "MIT OR Apache-2.0"
+keywords = ["api", "iracing", "gaming"]
+categories = ["api-bindings"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[dependencies]
+
+[dev-dependencies]
