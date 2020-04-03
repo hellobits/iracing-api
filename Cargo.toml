@@ -21,4 +21,7 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.8", features = ["handleapi", "memoryapi", "minwindef", "std", "synchapi", "winuser", "winbase", "winnt"] }
+
 [dev-dependencies]

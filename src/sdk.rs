@@ -5,5 +5,10 @@
 //! memory mapped file. This module implements the relevant parts of the SDK in Rust, so that the
 //! crate can read the telemetry and session data from memory.
 
-pub const DATA_READY_EVENT: &str = "Local\\IRSDKDataValidEvent";
-pub const MEMORY_MAPPED_FILE: &str = "Local\\IRSDKMemMapFileName";
+#[cfg(windows)]
+mod win;
+#[cfg(windows)]
+pub use win::Sdk;
+
+#[cfg(not(windows))]
+pub struct Sdk {}
