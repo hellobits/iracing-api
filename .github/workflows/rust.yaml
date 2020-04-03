@@ -42,7 +42,7 @@ jobs:
           args: --all -- --check
 
   coverage:
-    name: Test (stable)
+    name: Coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -71,10 +71,11 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     strategy:
       matrix:
         rust:
+          - stable
           - beta
           - nightly
           - 1.39.0 # MSRV
