@@ -1,13 +1,13 @@
 use std::ffi::CString;
 use std::io::{Error, ErrorKind};
 use winapi::shared::minwindef::{FALSE, LPVOID};
-use winapi::shared::winerror::ERROR_FILE_NOT_FOUND;
+use winapi::shared::winerror::{ERROR_ACCESS_DENIED, ERROR_FILE_NOT_FOUND};
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::handleapi::CloseHandle;
 use winapi::um::memoryapi::{MapViewOfFile, UnmapViewOfFile, FILE_MAP_READ};
 use winapi::um::synchapi::OpenEventA;
 use winapi::um::winbase::OpenFileMappingA;
-use winapi::um::winnt::{HANDLE, PAGE_READONLY, SYNCHRONIZE};
+use winapi::um::winnt::{HANDLE, SYNCHRONIZE};
 
 pub struct Sdk {
     memory_mapped_file: HANDLE,
@@ -22,18 +22,14 @@ impl Sdk {
             Err(error) => return Err(error),
         };
 
-        let shared_memory: LPVOID;
+        let shared_memory = match map_view_of_file(memory_mapped_file) {
+            Ok(pointer) => pointer,
+            Err(error) => return Err(error),
+        };
+
         let data_ready_event: HANDLE;
 
         unsafe {
-            shared_memory = MapViewOfFile(memory_mapped_file, FILE_MAP_READ, 0, 0, 0);
-            if shared_memory.is_null() {
-                return Err(Error::new(
-                    ErrorKind::NotConnected,
-                    "Failed to create view of memory mapped file.",
-                ));
-            }
-
             data_ready_event = OpenEventA(SYNCHRONIZE, FALSE, data_ready_event_name().as_ptr());
             if data_ready_event.is_null() {
                 return Err(Error::new(
@@ -75,7 +71,7 @@ fn open_file_mapping(name: &CString) -> Result<HANDLE, Error> {
     let memory_mapped_file;
 
     unsafe {
-        memory_mapped_file = OpenFileMappingA(PAGE_READONLY, FALSE, name.as_ptr());
+        memory_mapped_file = OpenFileMappingA(FILE_MAP_READ, FALSE, name.as_ptr());
 
         if memory_mapped_file.is_null() {
             let error = GetLastError();
@@ -98,15 +94,43 @@ fn open_file_mapping(name: &CString) -> Result<HANDLE, Error> {
     Ok(memory_mapped_file)
 }
 
+fn map_view_of_file(memory_mapped_file: HANDLE) -> Result<LPVOID, Error> {
+    let shared_memory;
+
+    unsafe {
+        shared_memory = MapViewOfFile(memory_mapped_file, FILE_MAP_READ, 0, 0, 0);
+
+        if shared_memory.is_null() {
+            let error = GetLastError();
+
+            match error {
+                ERROR_ACCESS_DENIED => {
+                    return Err(Error::new(
+                        ErrorKind::PermissionDenied,
+                        "Failed to created view of mapped memory file due to denied access.",
+                    ))
+                }
+                error => panic!(
+                    "Unexpected error occured while creating a view of a memory mapped file. Error code: {}.",
+                    error
+                ),
+            }
+        }
+    }
+
+    Ok(shared_memory)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::open_file_mapping;
+    use super::{map_view_of_file, open_file_mapping};
     use std::ffi::CString;
     use std::io::{Error, ErrorKind};
     use winapi::shared::ntdef::NULL;
     use winapi::um::errhandlingapi::GetLastError;
     use winapi::um::handleapi::CloseHandle;
     use winapi::um::handleapi::INVALID_HANDLE_VALUE;
+    use winapi::um::memoryapi::UnmapViewOfFile;
     use winapi::um::minwinbase::SECURITY_ATTRIBUTES;
     use winapi::um::winbase::CreateFileMappingA;
     use winapi::um::winnt::HANDLE;
@@ -156,6 +180,21 @@ mod tests {
         match open_file_mapping(&name) {
             Ok(_) => panic!("Test should fail due to missing file mapping"),
             Err(error) => assert_eq!(ErrorKind::NotFound, error.kind()),
+        }
+    }
+
+    #[test]
+    fn map_view_of_existing_file() {
+        let name = CString::new("map_view_of_existing_file").unwrap();
+
+        let file = create_file_mapping(&name).unwrap();
+        let mapping = open_file_mapping(&name).unwrap();
+        let view = map_view_of_file(mapping).unwrap();
+
+        unsafe {
+            UnmapViewOfFile(view);
+            CloseHandle(mapping);
+            CloseHandle(file);
         }
     }
 }
