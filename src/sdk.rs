@@ -5,10 +5,20 @@
 //! memory mapped file. This module implements the relevant parts of the SDK in Rust, so that the
 //! crate can read the telemetry and session data from memory.
 
+use std::io::Error;
+
+#[cfg(not(windows))]
+mod unix;
+#[cfg(not(windows))]
+pub use unix::UnixClient as Client;
+
 #[cfg(windows)]
 mod win;
 #[cfg(windows)]
-pub use win::Sdk;
+pub use win::WinClient as Client;
 
-#[cfg(not(windows))]
-pub struct Sdk {}
+pub trait IRacingClient {
+    fn new() -> Result<Self, Error>
+    where
+        Self: Sized;
+}

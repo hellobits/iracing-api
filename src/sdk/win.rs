@@ -1,3 +1,4 @@
+use crate::sdk::IRacingClient;
 use std::ffi::CString;
 use std::io::{Error, ErrorKind};
 use winapi::shared::minwindef::{FALSE, LPVOID};
@@ -12,14 +13,14 @@ use winapi::um::winnt::{HANDLE, SYNCHRONIZE};
 pub const DATA_READY_EVENT: &str = "Local\\IRSDKDataValidEvent";
 pub const MEMORY_MAPPED_FILE: &str = "Local\\IRSDKMemMapFileName";
 
-pub struct Sdk {
+pub struct WinClient {
     memory_mapped_file: HANDLE,
     shared_memory: LPVOID,
     data_ready_event: HANDLE,
 }
 
-impl Sdk {
-    pub fn new() -> Result<Self, Error> {
+impl IRacingClient for WinClient {
+    fn new() -> Result<Self, Error> {
         let memory_mapped_file = match open_file_mapping(&memory_mapped_file_name()) {
             Ok(handle) => handle,
             Err(error) => return Err(error),
@@ -35,7 +36,7 @@ impl Sdk {
             Err(error) => return Err(error),
         };
 
-        Ok(Self {
+        Ok(WinClient {
             memory_mapped_file,
             shared_memory,
             data_ready_event,
@@ -43,7 +44,7 @@ impl Sdk {
     }
 }
 
-impl Drop for Sdk {
+impl Drop for WinClient {
     fn drop(&mut self) {
         unsafe {
             CloseHandle(self.data_ready_event);
