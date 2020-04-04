@@ -9,6 +9,9 @@ use winapi::um::synchapi::OpenEventA;
 use winapi::um::winbase::OpenFileMappingA;
 use winapi::um::winnt::{HANDLE, SYNCHRONIZE};
 
+pub const DATA_READY_EVENT: &str = "Local\\IRSDKDataValidEvent";
+pub const MEMORY_MAPPED_FILE: &str = "Local\\IRSDKMemMapFileName";
+
 pub struct Sdk {
     memory_mapped_file: HANDLE,
     shared_memory: LPVOID,
@@ -51,12 +54,12 @@ impl Drop for Sdk {
 }
 
 fn memory_mapped_file_name() -> CString {
-    CString::new("Local\\IRSDKMemMapFileName")
+    CString::new(MEMORY_MAPPED_FILE)
         .expect("Failed to create CString from the hardcoded memory mapped file name.")
 }
 
 fn data_ready_event_name() -> CString {
-    CString::new("Local\\IRSDKDataValidEvent")
+    CString::new(DATA_READY_EVENT)
         .expect("Failed to create a CString from the hardcoded event name.")
 }
 
