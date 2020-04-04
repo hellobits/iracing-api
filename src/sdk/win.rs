@@ -27,17 +27,10 @@ impl Sdk {
             Err(error) => return Err(error),
         };
 
-        let data_ready_event: HANDLE;
-
-        unsafe {
-            data_ready_event = OpenEventA(SYNCHRONIZE, FALSE, data_ready_event_name().as_ptr());
-            if data_ready_event.is_null() {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "Failed to subscribe to data ready event.",
-                ));
-            }
-        }
+        let data_ready_event = match open_event(&data_ready_event_name()) {
+            Ok(data_ready_event) => data_ready_event,
+            Err(error) => return Err(error),
+        };
 
         Ok(Self {
             memory_mapped_file,
@@ -121,17 +114,46 @@ fn map_view_of_file(memory_mapped_file: HANDLE) -> Result<LPVOID, Error> {
     Ok(shared_memory)
 }
 
+fn open_event(name: &CString) -> Result<HANDLE, Error> {
+    let data_ready_event: HANDLE;
+
+    unsafe {
+        data_ready_event = OpenEventA(SYNCHRONIZE, FALSE, name.as_ptr());
+
+        if data_ready_event.is_null() {
+            let error = GetLastError();
+
+            match error {
+                ERROR_FILE_NOT_FOUND => {
+                    return Err(Error::new(
+                        ErrorKind::NotFound,
+                        "Failed to open data ready event.",
+                    ))
+                }
+                error => panic!(
+                    "Unexpected error occured while opening a file mapping. Error code: {}.",
+                    error
+                ),
+            }
+        }
+    }
+
+    Ok(data_ready_event)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{map_view_of_file, open_file_mapping};
+    use super::{map_view_of_file, open_event, open_file_mapping};
     use std::ffi::CString;
     use std::io::{Error, ErrorKind};
+    use winapi::shared::minwindef::FALSE;
     use winapi::shared::ntdef::NULL;
     use winapi::um::errhandlingapi::GetLastError;
     use winapi::um::handleapi::CloseHandle;
     use winapi::um::handleapi::INVALID_HANDLE_VALUE;
     use winapi::um::memoryapi::UnmapViewOfFile;
     use winapi::um::minwinbase::SECURITY_ATTRIBUTES;
+    use winapi::um::synchapi::CreateEventA;
     use winapi::um::winbase::CreateFileMappingA;
     use winapi::um::winnt::HANDLE;
     use winapi::um::winnt::PAGE_READWRITE;
@@ -195,6 +217,43 @@ mod tests {
             UnmapViewOfFile(view);
             CloseHandle(mapping);
             CloseHandle(file);
+        }
+    }
+
+    #[test]
+    fn open_existing_event() {
+        let name = CString::new("open_existing_event").unwrap();
+
+        let existing_event;
+
+        unsafe {
+            existing_event = CreateEventA(
+                NULL as *mut SECURITY_ATTRIBUTES,
+                FALSE,
+                FALSE,
+                name.as_ptr(),
+            );
+
+            if existing_event.is_null() {
+                panic!("Failed to create event. Error {}.", GetLastError());
+            }
+        }
+
+        let event = open_event(&name).unwrap();
+
+        unsafe {
+            CloseHandle(event);
+            CloseHandle(existing_event);
+        }
+    }
+
+    #[test]
+    fn open_missing_event() {
+        let name = CString::new("open_missing_event").unwrap();
+
+        match open_event(&name) {
+            Ok(_) => panic!("Test should fail due to missing event"),
+            Err(error) => assert_eq!(ErrorKind::NotFound, error.kind()),
         }
     }
 }
