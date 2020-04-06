@@ -19,6 +19,9 @@ categories = ["api-bindings"]
 [badges]
 maintenance = { status = "actively-developed" }
 
+[[example]]
+name = "cli"
+
 [dependencies]
 
 [target.'cfg(windows)'.dependencies]
