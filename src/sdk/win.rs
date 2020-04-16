@@ -42,6 +42,14 @@ impl IRacingClient for WinClient {
             data_ready_event,
         })
     }
+
+    fn run(&self) {
+        // Wait for data ready event from Windows
+        // Check if data in memory has been updated
+        // Copy data to new location to prevent it from being changed
+        // Decode copied memory
+        // Push decoded update through channel
+    }
 }
 
 impl Drop for WinClient {

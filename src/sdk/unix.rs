@@ -10,4 +10,8 @@ impl IRacingClient for UnixClient {
             "Unsupported platform. iRacing only supports Windows.",
         ))
     }
+
+    fn run(&self) {
+        unimplemented!();
+    }
 }

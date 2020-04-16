@@ -21,4 +21,6 @@ pub trait IRacingClient {
     fn new() -> Result<Self, Error>
     where
         Self: Sized;
+
+    fn run(&self);
 }
